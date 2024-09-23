@@ -1,6 +1,7 @@
 import uuid
 from typing import Optional
 
+from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from tests.conftest import needs_pydanticv2
@@ -9,6 +10,13 @@ from tests.conftest import needs_pydanticv2
 @needs_pydanticv2
 def test_annotated_optional_types(clear_sqlmodel) -> None:
     from pydantic import UUID4
+
+    class BaseHero(BaseModel):
+        model_config = ConfigDict(from_attributes=True)
+        id: Optional[UUID4]
+
+    blob = BaseHero(id=uuid.uuid4()).model_dump_json()
+    assert isinstance(BaseHero.model_validate_json(blob).id, uuid.UUID)
 
     class Hero(SQLModel, table=True):
         # Pydantic UUID4 is: Annotated[UUID, UuidVersion(4)]
@@ -24,3 +32,9 @@ def test_annotated_optional_types(clear_sqlmodel) -> None:
         result = db.exec(statement).all()
     assert len(result) == 1
     assert isinstance(hero.id, uuid.UUID)
+
+    blob = Hero(id=uuid.uuid4()).model_dump_json()
+    assert isinstance(Hero.parse_raw(blob).id, uuid.UUID)
+
+    blob = Hero(id=uuid.uuid4()).model_dump_json()
+    assert isinstance(Hero.model_validate_json(blob, strict=True).id, uuid.UUID)
